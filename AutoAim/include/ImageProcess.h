@@ -12,7 +12,6 @@ extern const cv::Mat DIST_COEFFS;
 extern const float ARMOR_WIDTH;
 extern const float LIGHT_BAR_LENGTH;
 
-// 函数声明
 cv::Mat preprocessImage(const cv::Mat &frame);
 std::vector<cv::RotatedRect> findLightBars(const cv::Mat &binary_img);
 std::vector<std::pair<cv::RotatedRect, cv::RotatedRect>> matchArmorPairs(const std::vector<cv::RotatedRect> &light_bars);

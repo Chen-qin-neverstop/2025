@@ -1,9 +1,10 @@
 #ifndef COORDINATE_TRANSFORMER_H
 #define COORDINATE_TRANSFORMER_H
 
+#include "Pose.h"
 #include <map>
 #include <string>
-#include "Pose.h"
+#include <stdexcept>
 
 class CoordinateTransformer {
 private:

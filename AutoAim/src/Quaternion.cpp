@@ -1,13 +1,11 @@
 #include "Quaternion.h"
 #include <cmath>
 #include <stdexcept>
-// 四元数类的实现
+
 Quaternion::Quaternion(double w, double x, double y, double z) 
     : w(w), x(x), y(y), z(z) {}
 
 Quaternion Quaternion::fromEulerAngles(double roll, double pitch, double yaw) {
-    // 将欧拉角转换为四元数
-    // 注意：这里的 roll, pitch, yaw 是按照 (roll, pitch, yaw) 的顺序,但是旋转顺序是 (yaw, pitch, roll)
     double cy = cos(yaw * 0.5);
     double sy = sin(yaw * 0.5);
     double cp = cos(pitch * 0.5);
@@ -15,11 +13,11 @@ Quaternion Quaternion::fromEulerAngles(double roll, double pitch, double yaw) {
     double cr = cos(roll * 0.5);
     double sr = sin(roll * 0.5);
 
-    return Quaternion(    // ZYX 顺序四元数构造公式（即 yaw → pitch → roll）
-        cy * cp * cr + sy * sp * sr,   // W
-        sy * cp * cr - cy * sp * sr,   // X
-        cy * sp * cr + sy * cp * sr,   // Y
-        cy * cp * sr - sy * sp * cr    // Z
+    return Quaternion(
+        cy * cp * cr + sy * sp * sr,
+        sy * cp * cr - cy * sp * sr,
+        cy * sp * cr + sy * cp * sr,
+        cy * cp * sr - sy * sp * cr
     );
 }
 

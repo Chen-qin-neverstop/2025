@@ -2,6 +2,7 @@
 #define QUATERNION_H
 
 #include <vector>
+#include <cmath>
 
 class Quaternion {
 private:

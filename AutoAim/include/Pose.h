@@ -7,11 +7,11 @@
 class Pose {
 private:
     std::vector<double> position;    // x,y,z
-    std::vector<double> orientation; // yaw,pitch,roll
+    std::vector<double> orientation; // roll,pitch,yaw
 
 public:
     Pose(double x=0, double y=0, double z=0, 
-         double yaw=0, double pitch=0, double roll=0);
+         double roll=0, double pitch=0, double yaw=0);
     Pose(const std::vector<double>& pos, const Quaternion& q);
     
     Pose transform(const Pose& transform) const;
