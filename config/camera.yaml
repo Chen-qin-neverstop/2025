@@ -1,0 +1,16 @@
+camera:
+  device_id: 0
+  width: 1280
+  height: 720
+  fps: 60
+  exposure: 1000
+  gain: 100
+  white_balance: auto
+
+calibration:
+  camera_matrix:
+    - [1000.0, 0.0, 640.0]
+    - [0.0, 1000.0, 360.0]
+    - [0.0, 0.0, 1.0]
+  dist_coeffs:
+    - [0.0, 0.0, 0.0, 0.0, 0.0] 

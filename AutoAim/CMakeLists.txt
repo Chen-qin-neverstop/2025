@@ -1,39 +1,41 @@
 cmake_minimum_required(VERSION 3.10)
-project(ArmorDetectionSystem)
+project(AutoAim)
 
-set(CMAKE_CXX_STANDARD 11)
+# 设置 C++ 标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# OpenCV
+# 查找必要的包
 find_package(OpenCV REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS})
+find_package(Threads REQUIRED)
 
-# Eigen
-find_package(Eigen3 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR})
+# 添加头文件目录
+include_directories(${OpenCV_INCLUDE_DIRS} include)
 
-# 服务器可执行文件
-add_executable(armor_server
-    src/server/server.cpp
+# 服务器源文件
+set(SERVER_SOURCES
+    src/server/ArmorDetectionServer.cpp
+    src/server/Protocol.cpp
     src/server/ImageProcess.cpp
-    src/server/CoordinateTransformer.cpp
+    src/server/ArmorTracker.cpp
     src/server/MotionEstimator.cpp
     src/server/RotationCenterCalculator.cpp
-    src/server/Pose.cpp
-    src/server/Quaternion.cpp
-    src/server/Protocol.cpp
 )
 
-target_link_libraries(armor_server ${OpenCV_LIBS})
-
-# 客户端可执行文件
-add_executable(armor_client
-    src/client/client.cpp
-    src/common/utils.cpp
-    src/server/Protocol.cpp
+# 客户端源文件
+set(CLIENT_SOURCES
+    src/client/VideoClient.cpp
 )
 
-target_link_libraries(armor_client ${OpenCV_LIBS})
+# 添加可执行文件
+add_executable(armor_detection_server ${SERVER_SOURCES})
+add_executable(video_client ${CLIENT_SOURCES})
 
-# 测试可执行文件
-add_executable(test_pose test/test_pose.cpp src/server/Pose.cpp src/server/Quaternion.cpp)
-add_executable(test_protocol test/test_protocol.cpp src/server/Protocol.cpp)
+# 链接库
+target_link_libraries(armor_detection_server ${OpenCV_LIBS} Threads::Threads)
+target_link_libraries(video_client ${OpenCV_LIBS} Threads::Threads)
+
+# 安装目标
+install(TARGETS armor_detection_server video_client
+    RUNTIME DESTINATION bin
+)

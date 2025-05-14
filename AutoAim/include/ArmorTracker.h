@@ -1,65 +1,40 @@
-#ifndef ARMOR_DETECTION_SERVER_H
-#define ARMOR_DETECTION_SERVER_H
+#ifndef ARMOR_TRACKER_H
+#define ARMOR_TRACKER_H
 
-#include "Protocol.h"
-#include "ImageProcess.h"
-#include "CoordinateTransformer.h"
-#include "MotionEstimator.h"
-#include "RotationCenterCalculator.h"
-#include "ArmorTracker.h"
-#include <thread>
+#include <opencv2/opencv.hpp>
+#include <memory>
+#include <vector>
 #include <mutex>
-#include <condition_variable>
-#include <queue>
-#include <atomic>
 
-class ArmorDetectionServer {
+class ArmorTracker {
 public:
-    ArmorDetectionServer(int port, int worker_threads = 4);
-    ~ArmorDetectionServer();
+    ArmorTracker();
+    ~ArmorTracker();
+
+    // 更新跟踪器状态
+    cv::Point3f update(const cv::Point3f& position, double timestamp);
     
-    void run();
-    void stop();
+    // 获取最后检测到的位置
+    cv::Point3f getLastPosition() const;
+    
+    // 获取最后的时间戳
+    double getLastTimestamp() const;
+    
+    // 获取预测的位置
+    cv::Point3f getPredictedPosition() const;
 
 private:
-    struct ClientTask {
-        int socket;
-        MessageBuffer message;
-    };
-
-    void networkThread();
-    void processingThread();
+    std::vector<cv::Point3f> position_history_;
+    cv::Point3f last_position_;
+    cv::Point3f predicted_position_;
+    double last_timestamp_;
+    mutable std::mutex mutex_;
     
-    void handleClient(int client_socket);
-    void handleImageMessage(int client_socket, const MessageBuffer& firstMsg);
-    void processImageAndSend(int client_socket, const cv::Mat& image, uint32_t dataID);
-    void handleTransformRequest(int client_socket, const MessageBuffer& msg);
-    void rotationMatrixToEulerAngles(const cv::Mat &R, double &roll, double &pitch, double &yaw);
-
-    // 线程安全队列
-    std::queue<ClientTask> task_queue_;
-    std::mutex queue_mutex_;
-    std::condition_variable queue_cond_;
-    
-    // 线程控制
-    std::atomic<bool> running_{false};
-    std::thread network_thread_;
-    std::vector<std::thread> worker_threads_;
-    
-    // 资源
-    int port_;
-    int server_fd_;
-    cv::Mat camera_matrix_;
-    cv::Mat dist_coeffs_;
-    RotationCenterCalculator rotation_center_calculator_;
-    
-    // 装甲板跟踪器
-    std::unordered_map<uint32_t, std::unique_ptr<ArmorTracker>> armor_trackers_;
-    std::mutex tracker_mutex_;
-    
-    // 运动状态记录
-    std::unordered_map<uint32_t, MotionEstimator> motion_estimators_;
-    std::unordered_map<uint32_t, cv::Point3f> rotation_centers_;
+    // 简单的卡尔曼滤波器参数
+    cv::Point3f velocity_;
+    static constexpr double dt = 0.033;  // 假设30fps
+    static constexpr double process_noise = 0.1;
+    static constexpr double measurement_noise = 0.1;
 };
 
-#endif // ARMOR_DETECTION_SERVER_H
+#endif // ARMOR_TRACKER_H

@@ -232,6 +232,7 @@ void ArmorDetectionServer::start() {
     // 创建socket
     server_fd_ = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd_ < 0) {
+        相机参数：ArmorDetectionServer构
         throw std::runtime_error("Socket creation failed");
     }
     

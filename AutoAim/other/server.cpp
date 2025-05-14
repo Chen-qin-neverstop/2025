@@ -1,3 +1,4 @@
+
 #include "Protocol.h"
 #include "ImageProcess.h"
 #include "CoordinateTransformer.h"
@@ -9,12 +10,22 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
+#include <thread>
+#include <mutex>
 
 class ArmorDetectionServer {
 public:
     ArmorDetectionServer(int port) : port_(port), 
                                    rotation_center_calculator_(0.135f, 0.055f) {
-        // 初始化相机参数 (已在ImageProcess.cpp中定义)
+        // 初始化相机参数
+        camera_matrix_ = (cv::Mat_<double>(3, 3) <<
+            2065.0580175762857, 0.0, 658.9098266395495,
+            0.0, 2086.886458338243, 531.5333174739342,
+            0.0, 0.0, 1.0);
+
+        dist_coeffs_ = (cv::Mat_<double>(5, 1) << 
+            -0.051836613762195866, 0.29341513924119095, 
+            0.001501183796729562, 0.0009386915104617738, 0.0);
     }
 
     void run() {
@@ -48,8 +59,15 @@ public:
                 continue;
             }
 
-            handleClient(client_socket);
-            close(client_socket);
+            // 创建一个新线程来处理客户端请求
+            std::thread([this, client_socket]() {
+                try {
+                    handleClient(client_socket);
+                } catch (const std::exception& e) {
+                    std::cerr << "Error handling client: " << e.what() << std::endl;
+                }
+                close(client_socket);
+            }).detach();
         }
     }
 
@@ -113,7 +131,7 @@ private:
     void processImageAndSendResult(int client_socket, const cv::Mat& image, uint32_t dataID) {
         try {
             cv::Mat undistorted;
-            cv::undistort(image, undistorted, CAMERA_MATRIX, DIST_COEFFS);
+            cv::undistort(image, undistorted, camera_matrix_, dist_coeffs_);
             cv::Mat binary = preprocessImage(undistorted);
             
             auto light_bars = findLightBars(binary);
@@ -135,27 +153,29 @@ private:
                     tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2),
                     roll, pitch, yaw, dataID);
                 send(client_socket, &transformMsg, sizeof(MessageBuffer), 0);
-                
+                // 更新姿态估计器
+                std::lock_guard<std::mutex> lock(mutex_);
                 auto& estimator = motion_estimators_[dataID];
                 auto motion_state = estimator.update(rvec, tvec);
-                
+                // 计算转向中心
                 if (motion_state.rotation_radius > 0) {
                     cv::Point3f rotation_center = rotation_center_calculator_.calculateRotationCenter(
-                        corners, CAMERA_MATRIX, DIST_COEFFS, motion_state.rotation_radius);
-                    
+                        corners, camera_matrix_, dist_coeffs_, motion_state.rotation_radius);
+                    // 存储旋转中心
                     rotation_centers_[dataID] = rotation_center;
                     
                     std::stringstream motionInfo;
                     motionInfo << "Motion State - "
                               << "Linear Vel: (" << motion_state.linear_velocity.x << ", "
-                              << motion_state.linear_velocity.y << ", "
-                              << motion_state.linear_velocity.z << ") m/s | "
+                              << "Linear Vel: (" << motion_state.linear_velocity.y << ", "
+                              << "Linear Vel: (" << motion_state.linear_velocity.z << ") m/s | "
                               << "Angular Vel: (" << motion_state.angular_velocity.x << ", "
-                              << motion_state.angular_velocity.y << ", "
-                              << motion_state.angular_velocity.z << ") rad/s | "
+                              << "Angular Vel: (" << motion_state.angular_velocity.y << ", "
+                              << "Angular Vel: (" << motion_state.angular_velocity.z << ") rad/s | "
                               << "Rotation Radius: " << motion_state.rotation_radius << " m | "
                               << "Rotation Center: (" << rotation_center.x << ", "
-                              << rotation_center.y << ", " << rotation_center.z << ")";
+                              << "Rotation Center: (" << rotation_center.y << ", "
+                              << "Rotation Center: (" << rotation_center.z << ")";
                     
                     MessageBuffer motionMsg = Protocol::createStringMessage(
                         motionInfo.str(), dataID);
@@ -241,9 +261,12 @@ private:
 
 private:
     int port_;
+    cv::Mat camera_matrix_;
+    cv::Mat dist_coeffs_;
     RotationCenterCalculator rotation_center_calculator_;
     std::unordered_map<uint32_t, MotionEstimator> motion_estimators_;
     std::unordered_map<uint32_t, cv::Point3f> rotation_centers_;
+    std::mutex mutex_;
 };
 
 int main(int argc, char** argv) {
