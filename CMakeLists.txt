@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(RMVision2025)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_subdirectory(AutoAim)
 
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -19,12 +18,6 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/include
 )
-
-# 添加子目录
-add_subdirectory(AutoAim)
-add_subdirectory(Armor_detector)
-add_subdirectory(CoordinateTransformer)
-add_subdirectory(Kalman)
 
 # 安装规则
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/config/

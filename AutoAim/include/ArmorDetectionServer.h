@@ -1,5 +1,4 @@
-#ifndef ARMOR_DETECTION_SERVER_H
-#define ARMOR_DETECTION_SERVER_H
+#pragma once
 
 #include <thread>
 #include <vector>
@@ -16,6 +15,10 @@
 #include "ImageProcess.h"
 #include "MotionEstimator.h"
 #include "RotationCenterCalculator.h"
+#include <string>
+#include <opencv2/opencv.hpp>
+
+using namespace protocol;  // 添加命名空间使用
 
 // 前向声明
 class ThreadPool;
@@ -83,5 +86,3 @@ private:
     std::mutex mutex_;
     std::unique_ptr<ThreadPool> thread_pool_;  // 使用智能指针管理线程池
 };
-
-#endif // ARMOR_DETECTION_SERVER_H

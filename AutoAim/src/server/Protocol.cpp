@@ -2,6 +2,9 @@
 #include <vector>
 #include <cstring>
 #include <stdexcept>
+#include <sstream>
+
+using namespace protocol;
 
 std::vector<uint8_t> Protocol::serialize(const MessageBuffer& msg) {
     const uint8_t* ptr = reinterpret_cast<const uint8_t*>(&msg);
@@ -139,4 +142,44 @@ bool Protocol::validateMessage(const MessageBuffer& msg) {
     return msg.Start == START_SYMBOL && 
            msg.End == END_SYMBOL &&
            msg.DataLength <= MAX_DATA_SIZE;
+}
+
+MessageBuffer Protocol::createCornersMessage(const std::vector<cv::Point2f>& corners, uint32_t dataID) {
+    MessageBuffer msg;
+    msg.MessageType = CORNERS_MSG;
+    msg.DataID = dataID;
+    
+    // 每个角点有x,y两个float，共4个角点
+    const size_t dataSize = corners.size() * sizeof(float) * 2;
+    msg.DataLength = dataSize;
+    msg.DataTotalLength = dataSize;
+    msg.Offset = 0;
+    
+    // 将角点数据打包到Data中
+    float* data = reinterpret_cast<float*>(msg.Data);
+    for (const auto& corner : corners) {
+        *data++ = corner.x;
+        *data++ = corner.y;
+    }
+    
+    return msg;
+}
+
+std::vector<cv::Point2f> Protocol::extractCorners(const MessageBuffer& msg) {
+    if (msg.MessageType != CORNERS_MSG) {
+        throw std::runtime_error("Invalid message type for corners extraction");
+    }
+    
+    const size_t numCorners = msg.DataLength / (sizeof(float) * 2);
+    std::vector<cv::Point2f> corners;
+    corners.reserve(numCorners);
+    
+    const float* data = reinterpret_cast<const float*>(msg.Data);
+    for (size_t i = 0; i < numCorners; ++i) {
+        float x = *data++;
+        float y = *data++;
+        corners.emplace_back(x, y);
+    }
+    
+    return corners;
 }

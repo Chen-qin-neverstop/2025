@@ -19,7 +19,7 @@ public:
     
     // 获取最后的时间戳
     double getLastTimestamp() const;
-    
+
     // 获取预测的位置
     cv::Point3f getPredictedPosition() const;
 
