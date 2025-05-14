@@ -54,3 +54,6 @@ endif()
 install(TARGETS armor_detection_server video_client
     RUNTIME DESTINATION bin
 )
+
+# 添加以下内容到文件末尾
+add_subdirectory(experiment)
