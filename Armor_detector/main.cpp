@@ -204,7 +204,7 @@ int main() {
     createTrackbar("V Min", window_name, &v_min, 255, onTrackbar);
     createTrackbar("V Max", window_name, &v_max, 255, onTrackbar);
 
-    Mat frame = imread("/home/chen/Project/Vscode/Code/RM/RM-task/Opencv/Armor_detectionTRUE/detection4/23.jpg");
+    Mat frame = imread("/home/chen/Project/Vscode/Code/RM/RM-task/Opencv/Armor_detectionTRUE/detection4/test2.jpg");
     if (frame.empty()) {
         cerr << "Error: Could not load image!" << endl;
         return -1;
