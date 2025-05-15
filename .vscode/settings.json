@@ -69,6 +69,11 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "csignal": "cpp",
-        "cerrno": "cpp"
+        "cerrno": "cpp",
+        "any": "cpp",
+        "*.tcc": "cpp",
+        "codecvt": "cpp",
+        "future": "cpp",
+        "*.ipp": "cpp"
     }
 }

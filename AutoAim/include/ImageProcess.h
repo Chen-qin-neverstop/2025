@@ -17,6 +17,6 @@ std::vector<cv::RotatedRect> findLightBars(const cv::Mat &binary_img);
 std::vector<std::pair<cv::RotatedRect, cv::RotatedRect>> matchArmorPairs(const std::vector<cv::RotatedRect> &light_bars);
 std::vector<cv::Point2f> getArmorCorners(const std::pair<cv::RotatedRect, cv::RotatedRect> &light_pair);
 void solveArmorPose(const std::vector<cv::Point2f> &image_points, cv::Mat &rvec, cv::Mat &tvec);
-void drawDistanceInfo(cv::Mat &image, const cv::Point2f &center, float distance_mm);
+void drawDistanceInfo(cv::Mat &image, float distance_mm,const std::vector<cv::Point2f>& corners);
 
 #endif
