@@ -183,7 +183,8 @@ void ArmorDetectionServer::handleClient(int client_socket) {
 
             switch (msg.MessageType) {
                 case IMAGE_MSG: {
-                    handleImageMessage(client_socket, msg);
+                    // Comment out the existing image handling code
+                    // handleImageMessage(client_socket, msg);
                     break;
                 }
                 case TRANSFORM_REQUEST: {
@@ -208,26 +209,27 @@ void ArmorDetectionServer::handleClient(int client_socket) {
         }
     }
 
-void ArmorDetectionServer::handleImageMessage(int client_socket, const MessageBuffer& firstMsg) {
-        std::vector<MessageBuffer> messages;
-        messages.push_back(firstMsg);
-
-    // 接收完整的图像数据
-        while (messages.back().Offset + messages.back().DataLength < messages.back().DataTotalLength) {
-            MessageBuffer nextMsg;
-            ssize_t bytes_read = recv(client_socket, &nextMsg, sizeof(MessageBuffer), 0);
-            
-        if (bytes_read <= 0) {
-            throw std::runtime_error("Connection closed while receiving image data");
-            }
-            
-            messages.push_back(nextMsg);
-        }
-
-    // 处理图像
-        cv::Mat image = Protocol::extractImage(messages);
-        processImageAndSendResult(client_socket, image, firstMsg.DataID);
-    }
+// Comment out the existing image handling code
+// void ArmorDetectionServer::handleImageMessage(int client_socket, const MessageBuffer& firstMsg) {
+//     std::vector<MessageBuffer> messages;
+//     messages.push_back(firstMsg);
+// 
+//     // 接收完整的图像数据
+//     while (messages.back().Offset + messages.back().DataLength < messages.back().DataTotalLength) {
+//         MessageBuffer nextMsg;
+//         ssize_t bytes_read = recv(client_socket, &nextMsg, sizeof(MessageBuffer), 0);
+// 
+//         if (bytes_read <= 0) {
+//             throw std::runtime_error("Connection closed while receiving image data");
+//         }
+// 
+//         messages.push_back(nextMsg);
+//     }
+// 
+//     // 处理图像
+//     cv::Mat image = Protocol::extractImage(messages);
+//     processImageAndSendResult(client_socket, image, firstMsg.DataID);
+// }
 
 void ArmorDetectionServer::processImageAndSendResult(int client_socket, const cv::Mat& image, uint32_t dataID) {
         try {
@@ -401,6 +403,27 @@ void ArmorDetectionServer::predictionThread() {
             }
         }
     }
+}
+
+// Add video capture logic
+void ArmorDetectionServer::processVideo() {
+    cv::VideoCapture cap;
+    if (!cap.open("/path/to/video.mp4")) { // Update with actual video path or camera index
+        std::cerr << "Failed to open video source" << std::endl;
+        return;
+    }
+
+    cv::Mat frame;
+    while (cap.read(frame)) {
+        if (frame.empty()) {
+            std::cerr << "Received empty frame" << std::endl;
+            continue;
+        }
+
+        // Process each frame
+        processImageAndSendResult(-1, frame, 0); // client_socket and dataID are not used here
+    }
+    cap.release();
 }
 
 int main(int argc, char** argv) {

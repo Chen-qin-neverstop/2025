@@ -18,6 +18,8 @@ add_executable(experiment_demo
     ../AutoAim/src/server/KalmanFilter.cpp
     ../AutoAim/src/server/Pose.cpp
     ../AutoAim/src/server/Quaternion.cpp
+    ../AutoAim/src/server/CoordinateTransformer.cpp
+    
 )
 
 target_link_libraries(experiment_demo
