@@ -12,6 +12,8 @@ include_directories(
     ../CoordinateTransformer
     ../MotionEstimator
     ../RotationCenterCalculator
+    ../KalmanFilter
+    ../ArmorTracker
 )
 
 add_executable(experiment_demo
@@ -23,7 +25,8 @@ add_executable(experiment_demo
     ../AutoAim/src/server/CoordinateTransformer.cpp
     ../AutoAim/src/server/MotionEstimator.cpp
     ../AutoAim/src/server/RotationCenterCalculator.cpp
-    
+    ../AutoAim/src/server/KalmanFilter.cpp
+    ../AutoAim/src/server/ArmorTracker.cpp
 )
 
 target_link_libraries(experiment_demo

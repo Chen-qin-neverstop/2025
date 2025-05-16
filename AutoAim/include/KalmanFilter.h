@@ -16,6 +16,9 @@ public:
     void setProcessNoiseCov(const cv::Mat& Q);
     void setMeasurementNoiseCov(const cv::Mat& R);
     void setErrorCovPost(const cv::Mat& P);
+    cv::Mat getStatePost() const { return kf_.statePost; }
+    cv::Mat getErrorCovPost() const { return kf_.errorCovPost; }
+     
 
 private:
     int state_dim_;     // 状态维度 (x,y,z,vx,vy,vz)

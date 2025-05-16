@@ -60,7 +60,7 @@ cv::Point3f MotionEstimator::calculateLinearVelocity(const cv::Mat& tvec1, const
 
 float MotionEstimator::calculateRotationRadius(const cv::Point3f& linear_vel, const cv::Point3f& angular_vel) {
     float angular_speed = cv::norm(angular_vel);
-    if (angular_speed < 0.01f) return 0.0f;
+    if (angular_speed < 0.001f) return 0.0f;
     
     float tangential_speed = cv::norm(linear_vel);
     return tangential_speed / angular_speed;

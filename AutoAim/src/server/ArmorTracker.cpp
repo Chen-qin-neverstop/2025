@@ -55,3 +55,11 @@ cv::Point3f ArmorTracker::getPredictedPosition() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return predicted_position_;
 }
+
+// 基于简单的指数平滑速度估计
+
+// 线程安全设计（使用互斥锁保护共享数据）
+
+// 维护位置历史记录用于后续分析
+
+// 自动处理时间戳和预测逻辑

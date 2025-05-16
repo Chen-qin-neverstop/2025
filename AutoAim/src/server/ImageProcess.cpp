@@ -24,7 +24,7 @@ const float LIGHT_BAR_LENGTH = 55.0f;
 // 通道相减阈值（可调全局变量）
 int thres_max_color_red = 38;  // 红色通道相减阈值
 int thres_max_color_blue = 36; // 蓝色通道相减阈值
-int gray_threshold = 143;       // 灰度阈值
+int gray_threshold = 140;       // 灰度阈值  143
 
 // 相机参数
 const Mat CAMERA_MATRIX = (Mat_<double>(3, 3) <<
