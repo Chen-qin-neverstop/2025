@@ -2,13 +2,25 @@
 #include <opencv2/opencv.hpp>
 #include "ImageProcess.h"
 #include "CoordinateTransformer.h"
-
+#include "MotionEstimator.h"
+#include "RotationCenterCalculator.h"
 using namespace std;
 using namespace cv;
 
 int main(int argc, char** argv) {
+// 相机参数
+cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) << 
+    1000.0, 0.0, 640.0,
+    0.0, 1000.0, 360.0,
+    0.0, 0.0, 1.0);
+// 畸变系数
+cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) << 
+    0.0, 0.0, 0.0, 0.0, 0.0);
+// 旋转半径需要根据目标实际尺寸设置（示例值，单位：米）
+float rotation_radius = 0.5;
+
     // 改为读取视频
-    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/11.mp4"; // 修改为你的视频路径
+    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/2.mp4"; // 修改为你的视频路径
     VideoCapture cap(video_path);
     if (!cap.isOpened()) {
         cerr << "无法打开视频: " << video_path << endl;
@@ -26,9 +38,9 @@ int main(int argc, char** argv) {
         }
         
         frame_count++;
-        cout << "\n处理第 " << frame_count << " 帧" << endl;
+        // cout << "\n处理第 " << frame_count << " 帧" << endl;
 
-        // 原始图片处理代码注释掉
+        //原始图片处理代码注释掉
         // std::string image_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/21.jpg";
         // Mat img = imread(image_path);
         // if (img.empty()) {
@@ -45,7 +57,7 @@ int main(int argc, char** argv) {
         Mat armor_pair_vis = frame.clone();
 
         if (armor_pairs.empty()) {
-            cout << "第 " << frame_count << " 帧未检测到装甲板" << endl;
+            // cout << "第 " << frame_count << " 帧未检测到装甲板" << endl;
             continue;
         }
 
@@ -86,6 +98,18 @@ int main(int argc, char** argv) {
 
         Point2f center = (armor_corners[0] + armor_corners[2]) * 0.5f;
         drawDistanceInfo(frame, norm(tvec), armor_corners);
+
+        // 计算角速度和线速度
+        MotionEstimator motion_estimator;
+        MotionEstimator::MotionState state = motion_estimator.update(rvec, tvec);
+        // std::cout << "线速度: " << state.linear_velocity << std::endl;
+        // std::cout << "角速度: " << state.angular_velocity << std::endl;
+
+        // 计算旋转中心
+        RotationCenterCalculator rotation_center_calculator;
+        cv::Point3f rotation_center = rotation_center_calculator.calculateRotationCenter(armor_corners, camera_matrix, dist_coeffs, rotation_radius);
+        std::cout << "Rotation Center: (" << rotation_center.x << ", " << rotation_center.y << ", " << rotation_center.z << ")" << std::endl;
+
         imshow("Result", frame);
         
         // 按ESC键退出

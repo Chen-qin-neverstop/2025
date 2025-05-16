@@ -8,18 +8,23 @@
 using namespace cv;
 using namespace std;
 
-// // HSV阈值（可调全局变量）
-// int h_min = 46, h_max = 124;
-// int s_min = 92, s_max = 194;  // 195
-// int v_min = 217, v_max = 255;
+// HSV阈值（可调全局变量）
+int h_min = 46, h_max = 124;
+int s_min = 92, s_max = 194;  // 195
+int v_min = 217, v_max = 255;
 
-int h_min = 46,  h_max = 124;   // H 放宽（覆盖青蓝~蓝紫色）
-int s_min = 70,  s_max = 255;   // S 下限降低（允许浅蓝色）
-int v_min = 200,  v_max = 255;   // V 下限降低（适应暗光）
+// int h_min = 46,  h_max = 124;   // H 放宽（覆盖青蓝~蓝紫色）
+// int s_min = 70,  s_max = 255;   // S 下限降低（允许浅蓝色）
+// int v_min = 200,  v_max = 255;   // V 下限降低（适应暗光）
 
 // 装甲板尺寸
 const float ARMOR_WIDTH = 135.0f;
 const float LIGHT_BAR_LENGTH = 55.0f;
+
+// 通道相减阈值（可调全局变量）
+int thres_max_color_red = 38;  // 红色通道相减阈值
+int thres_max_color_blue = 36; // 蓝色通道相减阈值
+int gray_threshold = 143;       // 灰度阈值
 
 // 相机参数
 const Mat CAMERA_MATRIX = (Mat_<double>(3, 3) <<
@@ -31,15 +36,51 @@ const Mat DIST_COEFFS = (Mat_<double>(5, 1) <<
     -0.051836613762195866, 0.29341513924119095, 
     0.001501183796729562, 0.0009386915104617738, 0.0);
 
+// Mat preprocessImage(const Mat &frame) {
+//     Mat hsv, mask_red, mask_red1, mask_red2, result;
+//     cvtColor(frame, hsv, COLOR_BGR2HSV);
+//     inRange(hsv, Scalar(h_min, s_min, v_min), Scalar(h_max, s_max, v_max), mask_red1);
+//     inRange(hsv, Scalar(170, s_min, v_min), Scalar(180, s_max, v_max), mask_red2);
+//     mask_red = mask_red1 | mask_red2;
+//     Mat kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
+//     morphologyEx(mask_red, result, MORPH_CLOSE, kernel);
+//     return result;
+// }
+
+// 颜色识别模式
+enum ColorMode { RED, BLUE };
+ColorMode current_color_mode = BLUE;  // 默认识别红色
+
 Mat preprocessImage(const Mat &frame) {
-    Mat hsv, mask_red, mask_red1, mask_red2, result;
-    cvtColor(frame, hsv, COLOR_BGR2HSV);
-    inRange(hsv, Scalar(h_min, s_min, v_min), Scalar(h_max, s_max, v_max), mask_red1);
-    inRange(hsv, Scalar(170, s_min, v_min), Scalar(180, s_max, v_max), mask_red2);
-    mask_red = mask_red1 | mask_red2;
+    Mat binary_img, gray, thres_whole;
+    vector<Mat> channels;
+    
+    // 分割BGR通道
+    split(frame, channels);
+    
+    // 转换为灰度图并进行阈值处理
+    cvtColor(frame, gray, COLOR_BGR2GRAY);
+    threshold(gray, thres_whole, gray_threshold, 255, THRESH_BINARY);
+    
+    // 根据颜色模式选择通道相减策略
+    if (current_color_mode == RED) {
+        // 红色识别：R通道 - B通道
+        subtract(channels[2], channels[0], binary_img);
+        threshold(binary_img, binary_img, thres_max_color_red, 255, THRESH_BINARY);
+    } else {
+        // 蓝色识别：B通道 - R通道
+        subtract(channels[0], channels[2], binary_img);
+        threshold(binary_img, binary_img, thres_max_color_blue, 255, THRESH_BINARY);
+    }
+    
+    // 结合颜色阈值和整体灰度阈值
+    binary_img = binary_img & thres_whole;
+    
+    // 形态学闭运算，填充小孔洞
     Mat kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
-    morphologyEx(mask_red, result, MORPH_CLOSE, kernel);
-    return result;
+    morphologyEx(binary_img, binary_img, MORPH_CLOSE, kernel);
+    
+    return binary_img;
 }
 
 vector<RotatedRect> findLightBars(const Mat &binary_img) {
@@ -67,10 +108,10 @@ vector<pair<RotatedRect, RotatedRect>> matchArmorPairs(const vector<RotatedRect>
             const RotatedRect &rect2 = light_bars[j];
             // 角度差
             float angle_diff = abs(rect1.angle - rect2.angle);
-            if (angle_diff > 15.0f && angle_diff < 165.0f) continue;
+            if (angle_diff > 10.0f && angle_diff < 170.0f) continue;  // 15  165
             // 距离
             float distance = norm(rect1.center - rect2.center);
-            if (distance < ARMOR_WIDTH * 0.6 || distance > ARMOR_WIDTH * 1.4) continue;
+            if (distance < ARMOR_WIDTH * 0.4 || distance > ARMOR_WIDTH * 1.6) continue;
             // 高度差
             if (abs(rect1.center.y - rect2.center.y) > LIGHT_BAR_LENGTH/3.0f) continue;
             // 确保左右顺序

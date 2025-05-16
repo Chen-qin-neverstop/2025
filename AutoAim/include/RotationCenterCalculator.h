@@ -6,7 +6,7 @@
 
 class RotationCenterCalculator {
 public:
-    RotationCenterCalculator(float armor_width = 0.135f, float armor_height = 0.055f);
+    RotationCenterCalculator(float armor_width = 135.0f, float armor_height = 55.0f);   // float armor_width = 0.135f, float armor_height = 0.055f
     cv::Point3f calculateRotationCenter(
         const std::vector<cv::Point2f>& image_points,
         const cv::Mat& camera_matrix,

@@ -10,6 +10,8 @@ include_directories(
     ../AutoAim/include
     ../Armor_detector
     ../CoordinateTransformer
+    ../MotionEstimator
+    ../RotationCenterCalculator
 )
 
 add_executable(experiment_demo
@@ -19,6 +21,8 @@ add_executable(experiment_demo
     ../AutoAim/src/server/Pose.cpp
     ../AutoAim/src/server/Quaternion.cpp
     ../AutoAim/src/server/CoordinateTransformer.cpp
+    ../AutoAim/src/server/MotionEstimator.cpp
+    ../AutoAim/src/server/RotationCenterCalculator.cpp
     
 )
 
