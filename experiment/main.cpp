@@ -4,8 +4,8 @@
 #include "CoordinateTransformer.h"
 #include "MotionEstimator.h"
 #include "RotationCenterCalculator.h"
-#include "KalmanFilter.h"
-#include "ArmorTracker.h"
+#include "KalmanFilter.h"    
+#include "ArmorTracker.h"    // 还在测试中，暂时不使用
 
 using namespace std;
 using namespace cv;
@@ -13,7 +13,7 @@ using namespace cv;
 double timestamp = static_cast<double>(cv::getTickCount()) / cv::getTickFrequency();
 
 void drawRotationCenter(cv::Mat& frame, const cv::Point3f& center, 
-                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs) {
+                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs,int color) {
     std::vector<cv::Point3f> points{center};
     std::vector<cv::Point2f> projected_points;
     
@@ -21,43 +21,16 @@ void drawRotationCenter(cv::Mat& frame, const cv::Point3f& center,
                      camera_matrix, dist_coeffs, projected_points);
     
     if (!projected_points.empty()) {
-        cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 255, 0), 2);
+        if(color == 0){    // 绿色
+            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 255, 0), 2);
+        }
+        else if(color == 1){   // 红色
+            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 0, 255), 2);
+        }
         cv::putText(frame, "RC: " + std::to_string(center.x) + "," + std::to_string(center.y), 
                    projected_points[0] + cv::Point2f(15,0), 
                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,255,0), 1);
     }
-}
-
-// 初始化旋转中心卡尔曼滤波器
-void initRotationCenterKF(::KalmanFilter& kf) {
-    // 状态维度: 6 (x,y,z + vx,vy,vz)
-    // 测量维度: 3 (x,y,z)
-    kf = ::KalmanFilter(6, 3);
-    // 状态转移矩阵 (匀速模型)
-    cv::Mat F = cv::Mat::eye(6, 6, CV_32F);
-    F.at<float>(0,3) = 1.0f;  // x + vx*dt
-    F.at<float>(1,4) = 1.0f;  // y + vy*dt
-    F.at<float>(2,5) = 1.0f;  // z + vz*dt
-    kf.setTransitionMatrix(F);
-    
-    // 测量矩阵 (只能观测位置)
-    cv::Mat H = cv::Mat::zeros(3, 6, CV_32F);
-    H.at<float>(0,0) = 1.0f;
-    H.at<float>(1,1) = 1.0f;
-    H.at<float>(2,2) = 1.0f;
-    kf.setMeasurementMatrix(H);
-    
-    // 过程噪声协方差
-    cv::Mat Q = cv::Mat::eye(6, 6, CV_32F) * 1e-4;
-    kf.setProcessNoiseCov(Q);
-    
-    // 测量噪声协方差
-    cv::Mat R = cv::Mat::eye(3, 3, CV_32F) * 1e-2;
-    kf.setMeasurementNoiseCov(R);
-    
-    // 后验误差协方差
-    cv::Mat P = cv::Mat::eye(6, 6, CV_32F) * 0.1;
-    kf.setErrorCovPost(P);
 }
 
 int main(int argc, char** argv) {
@@ -70,18 +43,18 @@ cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) <<
 cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) << 
     -0.051836613762195866, 0.29341513924119095, 
     0.001501183796729562, 0.0009386915104617738, 0.0);
-// 旋转半径需要根据目标实际尺寸设置（示例值，单位：米）
-float rotation_radius = 0.5;
 
-// 初始化跟踪器和滤波器
-    ArmorTracker armor_tracker;
-    ::KalmanFilter rotation_center_kf;
-    initRotationCenterKF(rotation_center_kf);
-    bool is_first_frame = true;
-    double last_timestamp = 0.0; 
+    // 初始化组件
+    //ArmorTracker armor_tracker;
+    //MotionEstimator motion_estimator;
+    //RotationCenterCalculator rotation_center_calculator;
+    // 卡尔曼滤波器
+    RotationCenterKalmanFilter rc_kalman; // 旋转中心专用卡尔曼滤波器
+    cv::Point3f last_valid_rc; // 记录最后有效旋转中心
+    const float MAX_JUMP_DISTANCE = 0.3f; // 最大允许跳变距离(米)
 
     // 改为读取视频
-    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/2.mp4"; // 修改为你的视频路径
+    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/9.mp4"; 
     VideoCapture cap(video_path);
     if (!cap.isOpened()) {
         cerr << "无法打开视频: " << video_path << endl;
@@ -90,6 +63,7 @@ float rotation_radius = 0.5;
 
     int frame_count = 0;
     Mat frame;
+
     
     MotionEstimator motion_estimator; // 在while循环之前声明
     // 在while循环之前声明
@@ -119,67 +93,26 @@ float rotation_radius = 0.5;
 
         imshow("binary", binary);   
         
-        vector<pair<RotatedRect, RotatedRect>> armor_pairs = matchArmorPairs(light_bars);
+        vector<pair<RotatedRect, RotatedRect>> armor_pairs = matchArmorPairs(light_bars);  // armor_pairs[0] 储存的是左右灯条  其中每个RotatedRect储存的是灯条的中心点，长宽，倾斜角度等信息
         Mat armor_pair_vis = frame.clone();
 
         if (armor_pairs.empty()) {
-            // 没有检测到装甲板，使用跟踪器预测
-            if (!is_first_frame) {
-                cv::Point3f predicted_pos = armor_tracker.getPredictedPosition();
-                cv::Mat prediction = rotation_center_kf.predict();
-                cv::Point3f predicted_rc(prediction.at<float>(0), 
-                                        prediction.at<float>(1), 
-                                        prediction.at<float>(2));
-                
-                cout << "Frame " << frame_count << ": Tracking Predicted - " 
-                     << "Pos: " << predicted_pos 
-                     << " RC: " << predicted_rc << endl;
+            // 无检测时使用预测值
+            try {
+                cv::Point3f predicted_rc = rc_kalman.predict();
+                drawRotationCenter(frame, predicted_rc, camera_matrix, dist_coeffs,1);
+                cout << "Frame " << frame_count << ": Predicted RC - " << predicted_rc << endl;
+            } catch (const std::exception& e) {
+                cerr << "Prediction error: " << e.what() << endl;
             }
             continue;
         }
-
-        vector<Point2f> armor_corners = getArmorCorners(armor_pairs[0]);
+        
+        vector<Point2f> armor_corners = getArmorCorners(armor_pairs[0]);   //  传入左右灯条的位置用来解算装甲板中心   
         Mat rvec, tvec;
         solveArmorPose(armor_corners, rvec, tvec);
-        cv::Point3f current_position(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
-
-        // 更新跟踪器
-        cv::Point3f predicted_position = armor_tracker.update(current_position, timestamp);
-
-        // 卡尔曼滤波处理旋转中心
-        if (is_first_frame) {
-            // 第一帧初始化
-            cv::Mat initial_state = (cv::Mat_<float>(6,1) << 
-                current_rotation_center.x, current_rotation_center.y, current_rotation_center.z,
-                0.0f, 0.0f, 0.0f);
-            rotation_center_kf.init(initial_state);
-            is_first_frame = false;
-        } else {
-            // 预测步骤
-            cv::Mat prediction = rotation_center_kf.predict();
-            cv::Point3f predicted_rc(prediction.at<float>(0), 
-                                    prediction.at<float>(1), 
-                                    prediction.at<float>(2));
-            
-            // 校正步骤
-            cv::Mat measurement = (cv::Mat_<float>(3,1) << 
-                current_rotation_center.x, 
-                current_rotation_center.y, 
-                current_rotation_center.z);
-            rotation_center_kf.correct(measurement);
-        }
-
-        // 获取卡尔曼滤波状态（使用新增的get方法）
-        cv::Mat filtered_state = rotation_center_kf.getStatePost();
-        cv::Point3f filtered_rc(filtered_state.at<float>(0),
-                       filtered_state.at<float>(1),
-                       filtered_state.at<float>(2));
-        // 输出结果
-        cout << "Frame " << frame_count << ":\n"
-             << "  Position: " << current_position << " (Pred: " << predicted_position << ")\n"
-             << "  Rotation Center: " << current_rotation_center 
-             << " (Filtered: " << filtered_rc << ")\n";
-
+        cv::Point3f current_rotation_position(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));    // 当前装甲板中心点（但是还不是世界坐标系下的）
+        // 需要将当前装甲板中心点转换到世界坐标系下
         // 坐标系转换与输出
         cv::Mat R;
         cv::Rodrigues(rvec, R);
@@ -206,32 +139,56 @@ float rotation_radius = 0.5;
         Pose gimbal_pose = transformer.transformToTarget(camera_pose, "/Gimbal");
         auto pos = gimbal_pose.getPosition();
         auto orient = gimbal_pose.getOrientation();
-        std::cout << "第 " << frame_count << " 帧 Gimbal系下坐标: "
-                  << "x=" << pos[0] << " y=" << pos[1] << " z=" << pos[2]
-                  << " yaw=" << orient[0] << " pitch=" << orient[1] << " roll=" << orient[2]
-                  << std::endl;
-
-        Point2f center = (armor_corners[0] + armor_corners[2]) * 0.5f;
-        drawDistanceInfo(frame, norm(tvec), armor_corners);
-
-        // 计算角速度和线速度
+        // std::cout << "第 " << frame_count << " 帧 Gimbal系下坐标: "
+        //           << "x=" << pos[0] << " y=" << pos[1] << " z=" << pos[2]
+        //           << " yaw=" << orient[0] << " pitch=" << orient[1] << " roll=" << orient[2]
+        //           << std::endl;
+        // 根据世界坐标系下装甲板中心点算出线速度和角速度来推出旋转半径
+        // 计算线速度和角速度
         MotionEstimator::MotionState state = motion_estimator.update(rvec, tvec);
-        if(state.linear_velocity.x != 0 || state.linear_velocity.y != 0 || state.linear_velocity.z != 0){
-        std::cout << "线速度: " << state.linear_velocity << std::endl;
-        std::cout << "角速度: " << state.angular_velocity << std::endl;
-        }
-        // 计算旋转中心
-        RotationCenterCalculator rotation_center_calculator;
-        cv::Point3f rotation_center = rotation_center_calculator.calculateRotationCenter(armor_corners, camera_matrix, dist_coeffs, rotation_radius);
-        std::cout << "Rotation Center: (" << rotation_center.x << ", " << rotation_center.y << ", " << rotation_center.z << ")" << std::endl;
 
+        if(state.linear_velocity.x != 0 || state.linear_velocity.y != 0 || state.linear_velocity.z != 0){
+        // cout << "当前帧数: " << frame_count << endl;
+        // std::cout << "线速度: " << state.linear_velocity << std::endl;
+        // std::cout << "角速度: " << state.angular_velocity << std::endl;
+        }
+        //计算旋转中心(世界坐标系下)
+        cv::Point3f rotation_center = RotationCenterCalculator::Calculate(gimbal_pose, state.linear_velocity, state.angular_velocity);
+        // cout << "旋转中心: " << rotation_center << endl;
+        
+        // 卡尔曼滤波更新
+        try {
+            cv::Point3f filtered_rc = rc_kalman.update(rotation_center);
+            
+            // 跳变检测
+            if (cv::norm(filtered_rc - last_valid_rc) > MAX_JUMP_DISTANCE) {
+                filtered_rc = rc_kalman.predict(); // 使用纯预测值
+                cout << "Jump detected! Using prediction." << endl;
+            }
+            
+            last_valid_rc = filtered_rc;
+            
+            // 输出信息
+            cout << "Frame " << frame_count << ":\n"
+                 << "  Raw RC: " << rotation_center << "\n"
+                 << "  Filtered RC: " << filtered_rc << "\n"
+                 << "  Velocity: " << state.linear_velocity << endl;
+            
+            // 可视化
+            drawRotationCenter(frame, filtered_rc, camera_matrix, dist_coeffs,1);
+            
+        } catch (const std::exception& e) {
+            cerr << "Kalman update error: " << e.what() << endl;
+            rc_kalman.init(rotation_center); // 重新初始化
+            last_valid_rc = rotation_center;
+        }
 
        // 可视化
+        drawRotationCenter(frame, rotation_center, camera_matrix, dist_coeffs,0);
         drawDistanceInfo(frame, norm(tvec), armor_corners);
-        drawRotationCenter(frame, filtered_rc, camera_matrix, dist_coeffs);
         imshow("Result", frame);
         
-        last_timestamp = timestamp;
+        //last_timestamp = timestamp;
         if (waitKey(30) == 27) break;
     }
     

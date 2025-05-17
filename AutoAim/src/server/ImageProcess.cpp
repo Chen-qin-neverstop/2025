@@ -162,7 +162,7 @@ vector<Point2f> getArmorCorners(const pair<RotatedRect, RotatedRect> &light_pair
 
 void solveArmorPose(const vector<Point2f> &image_points, Mat &rvec, Mat &tvec) {
     vector<Point3f> object_points = {
-        Point3f(-ARMOR_WIDTH/2, -LIGHT_BAR_LENGTH/2, 0),
+        Point3f(-ARMOR_WIDTH/2, -LIGHT_BAR_LENGTH/2, 0),  
         Point3f(ARMOR_WIDTH/2, -LIGHT_BAR_LENGTH/2, 0),
         Point3f(ARMOR_WIDTH/2, LIGHT_BAR_LENGTH/2, 0),
         Point3f(-ARMOR_WIDTH/2, LIGHT_BAR_LENGTH/2, 0)

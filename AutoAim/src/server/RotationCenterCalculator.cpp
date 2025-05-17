@@ -1,58 +1,46 @@
 #include "RotationCenterCalculator.h"
-#include <iostream>
+#include <cmath>
 
-RotationCenterCalculator::RotationCenterCalculator(float armor_width, float armor_height)
-    : armor_width_(armor_width), armor_height_(armor_height) {}
+cv::Point3f RotationCenterCalculator::Calculate(
+    const Pose& armor_pose,
+    const cv::Point3f& linear_velocity,
+    const cv::Point3f& angular_velocity) {
+    
+    // 获取位姿数据
+    const std::vector<double>& pos = armor_pose.getPosition();
+    const std::vector<double>& orient = armor_pose.getOrientation();
+    
+    // 转换为Point3f
+    const cv::Point3f armor_position(pos[0], pos[1], pos[2]);
+    const float yaw = orient[2];   // 注意顺序：orientation是roll,pitch,yaw
+    const float pitch = orient[1];
+    const float roll = orient[0];
 
-cv::Point3f RotationCenterCalculator::calculateRotationCenter(
-    const std::vector<cv::Point2f>& image_points,
-    const cv::Mat& camera_matrix,
-    const cv::Mat& dist_coeffs,
-    float rotation_radius) {
+    // 计算角速度大小
+    const float angular_speed = cv::norm(angular_velocity);
     
-    // 1. 计算装甲板中心
-    cv::Point3f armor_center = calculateArmorCenterWorld(image_points, camera_matrix, dist_coeffs);
-    
-    // 2. 计算装甲板朝向
-    cv::Mat rvec, tvec;
-    cv::solvePnP(getArmorObjectPoints(), image_points, camera_matrix, dist_coeffs, rvec, tvec);
-    
-    cv::Mat rot_mat;
-    cv::Rodrigues(rvec, rot_mat);
-    
-    cv::Point3f armor_direction(
-        rot_mat.at<double>(0, 2),
-        rot_mat.at<double>(1, 2),
-        rot_mat.at<double>(2, 2));
-    
-    // 归一化方向向量
-    float norm = cv::norm(armor_direction);
-    armor_direction.x /= norm;
-    armor_direction.y /= norm;
-    armor_direction.z /= norm;
-    
-    // 3. 计算旋转中心
-    return cv::Point3f(
-        armor_center.x - rotation_radius * armor_direction.x,
-        armor_center.y - rotation_radius * armor_direction.y,
-        armor_center.z - rotation_radius * armor_direction.z);
-}
+    // 角速度过小时直接返回装甲板位置
+    if (angular_speed < MIN_ANGULAR_SPEED) {
+        return armor_position;
+    }
 
-cv::Point3f RotationCenterCalculator::calculateArmorCenterWorld(
-    const std::vector<cv::Point2f>& image_points,
-    const cv::Mat& camera_matrix,
-    const cv::Mat& dist_coeffs) {
-    
-    cv::Mat rvec, tvec;
-    cv::solvePnP(getArmorObjectPoints(), image_points, camera_matrix, dist_coeffs, rvec, tvec);
-    return cv::Point3f(tvec.at<double>(0), tvec.at<double>(1), tvec.at<double>(2));
-}
+    // 计算装甲板朝向向量（基于欧拉角）
+    const float cy = std::cos(yaw);
+    const float sy = std::sin(yaw);
+    const float cp = std::cos(pitch);
+    const float sp = std::sin(pitch);
 
-std::vector<cv::Point3f> RotationCenterCalculator::getArmorObjectPoints() const {
-    return {
-        cv::Point3f(-armor_width_/2, -armor_height_/2, 0),
-        cv::Point3f(armor_width_/2, -armor_height_/2, 0),
-        cv::Point3f(armor_width_/2, armor_height_/2, 0),
-        cv::Point3f(-armor_width_/2, armor_height_/2, 0)
-    };
+    // 计算旋转矩阵的Z轴方向（装甲板正前方）
+    const cv::Point3f armor_direction(
+        cy * cp,
+        sy * cp,
+        -sp
+    );
+
+    // 核心运动学公式：(v × ω)/|ω|²
+    const cv::Point3f radius_vector = linear_velocity.cross(angular_velocity) / 
+                                    (angular_speed * angular_speed);
+
+    // 最终旋转中心 = 装甲板位置 + 半径矢量
+    return armor_position + radius_vector;
 }

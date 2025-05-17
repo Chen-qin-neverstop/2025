@@ -3,30 +3,41 @@
 
 #include <opencv2/opencv.hpp>
 
-class KalmanFilter {
+/**
+ * @brief 专用于3D位置预测的卡尔曼滤波器
+ * 
+ * 状态向量: [x, y, z, vx, vy, vz]ᵀ
+ * 测量向量: [x, y, z]ᵀ
+ */
+class RotationCenterKalmanFilter {
 public:
-    KalmanFilter(int state_dim = 6, int meas_dim = 3, int ctrl_dim = 0);
+    RotationCenterKalmanFilter();
     
-    void init(const cv::Mat& initial_state);
-    cv::Mat predict(const cv::Mat& control = cv::Mat());
-    cv::Mat correct(const cv::Mat& measurement);
+    /**
+     * @brief 初始化/重置滤波器
+     * @param init_pos 初始位置 (x,y,z)
+     */
+    void init(const cv::Point3f& init_pos);
     
-    void setTransitionMatrix(const cv::Mat& F);
-    void setMeasurementMatrix(const cv::Mat& H);
-    void setProcessNoiseCov(const cv::Mat& Q);
-    void setMeasurementNoiseCov(const cv::Mat& R);
-    void setErrorCovPost(const cv::Mat& P);
-    cv::Mat getStatePost() const { return kf_.statePost; }
-    cv::Mat getErrorCovPost() const { return kf_.errorCovPost; }
-     
+    /**
+     * @brief 更新滤波器状态并返回预测值
+     * @param measurement 测量到的位置
+     * @param dt 时间步长(秒)。若<=0则自动计算
+     * @return 预测的下一时刻位置
+     */
+    cv::Point3f update(const cv::Point3f& measurement, float dt = -1.0f);
+    
+    /**
+     * @brief 仅进行预测
+     * @param dt 预测的时间步长(秒)
+     * @return 预测位置 
+     */
+    cv::Point3f predict(float dt = 0.033f); // 默认1/30秒
 
 private:
-    int state_dim_;     // 状态维度 (x,y,z,vx,vy,vz)
-    int meas_dim_;      // 测量维度 (x,y,z)
-    int ctrl_dim_;      // 控制输入维度
-    
-    cv::KalmanFilter kf_;
-    bool initialized_;
+    cv::KalmanFilter kf_impl_;
+    double last_timestamp_;
+    bool is_initialized_;
 };
 
-#endif // KALMAN_FILTER_H
+#endif
