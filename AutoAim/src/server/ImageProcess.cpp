@@ -8,14 +8,11 @@
 using namespace cv;
 using namespace std;
 
-// HSV阈值（可调全局变量）
-int h_min = 46, h_max = 124;
-int s_min = 92, s_max = 194;  // 195
-int v_min = 217, v_max = 255;
+// // HSV阈值（可调全局变量）
+// int h_min = 46, h_max = 124;
+// int s_min = 92, s_max = 194;  // 195
+// int v_min = 217, v_max = 255;
 
-// int h_min = 46,  h_max = 124;   // H 放宽（覆盖青蓝~蓝紫色）
-// int s_min = 70,  s_max = 255;   // S 下限降低（允许浅蓝色）
-// int v_min = 200,  v_max = 255;   // V 下限降低（适应暗光）
 
 // 装甲板尺寸
 const float ARMOR_WIDTH = 135.0f;
@@ -23,8 +20,10 @@ const float LIGHT_BAR_LENGTH = 55.0f;
 
 // 通道相减阈值（可调全局变量）
 int thres_max_color_red = 38;  // 红色通道相减阈值
-int thres_max_color_blue = 36; // 蓝色通道相减阈值
-int gray_threshold = 140;       // 灰度阈值  143
+int thres_max_color_blue = 38; // 蓝色通道相减阈值   // 38 
+int gray_threshold = 136;       // 灰度阈值  143
+
+// 38 140 1207   38 143 1211 
 
 // 相机参数
 const Mat CAMERA_MATRIX = (Mat_<double>(3, 3) <<

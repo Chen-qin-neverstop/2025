@@ -14,10 +14,11 @@ include_directories(
     ../RotationCenterCalculator
     ../KalmanFilter
     ../ArmorTracker
+    ../DataBuffer
 )
 
 add_executable(experiment_demo
-    main.cpp
+    maintest.cpp
     ../AutoAim/src/server/ImageProcess.cpp
     ../AutoAim/src/server/KalmanFilter.cpp
     ../AutoAim/src/server/Pose.cpp
@@ -27,6 +28,7 @@ add_executable(experiment_demo
     ../AutoAim/src/server/RotationCenterCalculator.cpp
     ../AutoAim/src/server/KalmanFilter.cpp
     ../AutoAim/src/server/ArmorTracker.cpp
+    ../AutoAim/src/server/DataBuffer.cpp
 )
 
 target_link_libraries(experiment_demo

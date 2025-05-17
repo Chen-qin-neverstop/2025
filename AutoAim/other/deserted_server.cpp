@@ -1,3 +1,4 @@
+// 被弃用的server.cpp
 
 #include "Protocol.h"
 #include "ImageProcess.h"

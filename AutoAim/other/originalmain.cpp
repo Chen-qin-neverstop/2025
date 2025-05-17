@@ -1,4 +1,7 @@
-// 已添加kalman滤波，使用多线程和双缓冲，但是没有使用socket通信
+// 已添加kalman滤波，但是没有使用多线程和双缓冲
+
+
+
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -9,22 +12,12 @@
 #include "KalmanFilter.h"    
 #include "ArmorTracker.h"    // 还在测试中，暂时不使用
 #include "DataBuffer.h"
-#include <atomic>
-#include <thread>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <cstring>
-#include <arpa/inet.h>
+
 
 using namespace std;
 using namespace cv;
 
 
-// 全局共享数据
-ThreadSafeQueue<FrameData> frame_data_queue;  // 线程安全帧数据队列
-DoubleBuffer frame_double_buffer;             // 双缓冲用于处理结果
-atomic<bool> stop_flag(false);               // 线程停止标志
 
 double timestamp = static_cast<double>(cv::getTickCount()) / cv::getTickFrequency();
 
@@ -49,28 +42,6 @@ void drawRotationCenter(cv::Mat& frame, const cv::Point3f& center,
     }
 }
 
-void processing_thread() {
-    try {
-        while (!stop_flag) {
-            FrameData frame_data;
-            if (frame_data_queue.try_pop(frame_data)) {
-                // 1. 图像预处理
-                Mat binary = preprocessImage(frame_data.frame);
-                
-                // 2. 灯条检测
-                vector<RotatedRect> light_bars = findLightBars(binary);
-                
-                // 3. 将处理结果存入双缓冲
-                if (!frame_double_buffer.try_push(std::move(binary))) {
-                    cerr << "Double buffer full, dropping frame" << endl;
-                }
-            }
-            this_thread::sleep_for(1ms); // 避免CPU占用过高
-        }
-    } catch (const exception& e) {
-        cerr << "Processing thread error: " << e.what() << endl;
-    }
-}
 
 int main(int argc, char** argv) {
 // 相机参数
@@ -84,33 +55,33 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
     0.001501183796729562, 0.0009386915104617738, 0.0);
 
     // 初始化组件
+    //ArmorTracker armor_tracker;
+    //MotionEstimator motion_estimator;
+    //RotationCenterCalculator rotation_center_calculator;
+    // 卡尔曼滤波器
     RotationCenterKalmanFilter rc_kalman; // 旋转中心专用卡尔曼滤波器
     cv::Point3f last_valid_rc; // 记录最后有效旋转中心
     const float MAX_JUMP_DISTANCE = 0.3f; // 最大允许跳变距离(米)
-    MotionEstimator motion_estimator; // 在while循环之前声明
-    RotationCenterCalculator rotation_center_calculator;
-    cv::Point3f current_rotation_center;
-    
 
     // 改为读取视频
-    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/2.mp4"; 
+    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/9.mp4"; 
     VideoCapture cap(video_path);
     if (!cap.isOpened()) {
         cerr << "无法打开视频: " << video_path << endl;
         return -1;
     }
 
-    // 启动处理线程
-    std::thread processor(processing_thread);
 
-    // 主循环
     int frame_count = 0;
     Mat frame;
-    // 装甲板检测计数器
-    int armor_detection_count = 0;
 
     
-    while (!stop_flag) {
+    MotionEstimator motion_estimator; // 在while循环之前声明
+    // 在while循环之前声明
+    cv::Point3f current_rotation_center;
+    RotationCenterCalculator rotation_center_calculator;
+    
+    while (true) {
         cap >> frame;
         if (frame.empty()) {
             cout << "视频处理完成" << endl;
@@ -118,22 +89,15 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
         }
         
         frame_count++;
-        
-        // 2. 将帧数据推入处理队列
-        FrameData current_frame;
-        current_frame.frame = frame.clone();
-        current_frame.frame_count = frame_count;
+        // cout << "\n处理第 " << frame_count << " 帧" << endl;
 
-        frame_data_queue.push(std::move(current_frame));  // 使用std::move
-
-        // 3. 尝试从双缓冲获取处理结果
-        if (frame_double_buffer.wait_for_data(10)) {
-            auto processed_frames = frame_double_buffer.get_front_buffer();
-            if (!processed_frames.empty()) {
-                imshow("binary", processed_frames[0]); // 显示处理后的二值图像
-            }
-            frame_double_buffer.swap_buffers();
-        }
+        //原始图片处理代码注释掉
+        // std::string image_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/21.jpg";
+        // Mat img = imread(image_path);
+        // if (img.empty()) {
+        //     cerr << "无法读取图片: " << image_path << endl;
+        //     return -1;
+        // }
 
         Mat binary = preprocessImage(frame);
         vector<RotatedRect> light_bars = findLightBars(binary);
@@ -184,16 +148,26 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
         Pose camera_pose(tx, ty, tz, yaw, pitch, roll); // x, y, z, yaw, pitch, roll
         CoordinateTransformer transformer;
         Pose gimbal_pose = transformer.transformToTarget(camera_pose, "/Gimbal");
-        
+        auto pos = gimbal_pose.getPosition();
+        auto orient = gimbal_pose.getOrientation();
+        // std::cout << "第 " << frame_count << " 帧 Gimbal系下坐标: "
+        //           << "x=" << pos[0] << " y=" << pos[1] << " z=" << pos[2]
+        //           << " yaw=" << orient[0] << " pitch=" << orient[1] << " roll=" << orient[2]
+        //           << std::endl;
         // 根据世界坐标系下装甲板中心点算出线速度和角速度来推出旋转半径
         // 计算线速度和角速度
-        // 9. 运动状态估计
         MotionEstimator::MotionState state = motion_estimator.update(rvec, tvec);
+
+        if(state.linear_velocity.x != 0 || state.linear_velocity.y != 0 || state.linear_velocity.z != 0){
+        // cout << "当前帧数: " << frame_count << endl;
+        // std::cout << "线速度: " << state.linear_velocity << std::endl;
+        // std::cout << "角速度: " << state.angular_velocity << std::endl;
+        }
         //计算旋转中心(世界坐标系下)
         cv::Point3f rotation_center = RotationCenterCalculator::Calculate(gimbal_pose, state.linear_velocity, state.angular_velocity);
         // cout << "旋转中心: " << rotation_center << endl;
         
-        //10 卡尔曼滤波更新
+        // 卡尔曼滤波更新
         try {
             cv::Point3f filtered_rc = rc_kalman.update(rotation_center);
             
@@ -226,19 +200,10 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
         imshow("Result", frame);
         
         //last_timestamp = timestamp;
-        if (waitKey(30) == 27)
-        {
-            stop_flag = true;
-            break;
-        }
+        if (waitKey(30) == 27) break;
     }
     
-    // ================= 资源清理 =================
-    frame_data_queue.stop();      // 停止队列
-    frame_double_buffer.stop();   // 停止双缓冲
-    processor.join();            // 等待处理线程结束
-    cap.release();               // 释放视频资源
-    destroyAllWindows();         // 关闭所有窗口
-    cout << "程序退出" << endl;
+    cap.release();
+    destroyAllWindows();
     return 0;
 }
