@@ -20,8 +20,8 @@ const float LIGHT_BAR_LENGTH = 55.0f;
 
 // 通道相减阈值（可调全局变量）
 int thres_max_color_red = 38;  // 红色通道相减阈值
-int thres_max_color_blue = 38; // 蓝色通道相减阈值   // 38 
-int gray_threshold = 136;       // 灰度阈值  143
+int thres_max_color_blue = 49; // 蓝色通道相减阈值   // 38 
+int gray_threshold = 128;       // 灰度阈值  143
 
 // 38 140 1207   38 143 1211 
 

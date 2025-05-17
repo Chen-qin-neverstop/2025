@@ -86,14 +86,14 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
     // 初始化组件
     RotationCenterKalmanFilter rc_kalman; // 旋转中心专用卡尔曼滤波器
     cv::Point3f last_valid_rc; // 记录最后有效旋转中心
-    const float MAX_JUMP_DISTANCE = 0.3f; // 最大允许跳变距离(米)
+    const float MAX_JUMP_DISTANCE = 0.1f; // 最大允许跳变距离(米)
     MotionEstimator motion_estimator; // 在while循环之前声明
     RotationCenterCalculator rotation_center_calculator;
     cv::Point3f current_rotation_center;
     
 
     // 改为读取视频
-    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/2.mp4"; 
+    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/11.mp4"; 
     VideoCapture cap(video_path);
     if (!cap.isOpened()) {
         cerr << "无法打开视频: " << video_path << endl;

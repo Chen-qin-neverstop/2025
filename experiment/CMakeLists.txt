@@ -18,7 +18,7 @@ include_directories(
 )
 
 add_executable(experiment_demo
-    maintest.cpp
+    main.cpp
     ../AutoAim/src/server/ImageProcess.cpp
     ../AutoAim/src/server/KalmanFilter.cpp
     ../AutoAim/src/server/Pose.cpp
