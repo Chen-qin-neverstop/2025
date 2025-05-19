@@ -122,12 +122,16 @@ private:
 struct FrameData {
     cv::Mat frame;
     int frame_count = 0;
-    double timestamp = 0.0;
+    double timestamp = 0.0;   
 
     // 移动构造优化性能
     FrameData() = default;
     FrameData(FrameData&&) = default;
     FrameData& operator=(FrameData&&) = default;
+
+    // 禁止拷贝
+    FrameData(const FrameData&) = delete;
+    FrameData& operator=(const FrameData&) = delete;
 };
 
 // 显式实例化声明（实现在.cpp中）

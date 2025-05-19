@@ -20,8 +20,8 @@ const float LIGHT_BAR_LENGTH = 55.0f;
 
 // 通道相减阈值（可调全局变量）
 int thres_max_color_red = 38;  // 红色通道相减阈值
-int thres_max_color_blue = 49; // 蓝色通道相减阈值   // 38 
-int gray_threshold = 128;       // 灰度阈值  143
+int thres_max_color_blue = 38; // 蓝色通道相减阈值   // 38  
+int gray_threshold = 143;       // 灰度阈值  143
 
 // 38 140 1207   38 143 1211 
 
@@ -176,7 +176,7 @@ void drawDistanceInfo(Mat &image, float distance_mm,const vector<Point2f> &corne
         line(image, corners[i], corners[(i+1)%4], Scalar(0,255,0), 2);
     }
     
-    // 计算装甲板中心点
+    // 计算灯条中心点
     Point2f center1 = (corners[0] + corners[2]) / 2;
     Point2f center2 = (corners[1] + corners[3]) / 2;
     
@@ -199,4 +199,49 @@ void drawDistanceInfo(Mat &image, float distance_mm,const vector<Point2f> &corne
     putText(image, ss.str(), 
             Point(center1.x - text_size.width/2, center1.y - 5), 
             font_face, font_scale, Scalar(0, 255, 255), thickness);
+}
+void drawRotationCenter(cv::Mat& frame, const cv::Point3f& center, 
+                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs,int color) {
+    std::vector<cv::Point3f> points{center};
+    std::vector<cv::Point2f> projected_points; // 先不要反投影 直接用中心点 x,y
+    projected_points.push_back(cv::Point2f(center.x, center.y));
+
+    cv::projectPoints(points, cv::Mat::zeros(3,1,CV_32F), cv::Mat::zeros(3,1,CV_32F),  // 反投影
+                     camera_matrix, dist_coeffs, projected_points);
+    
+    
+    if (!projected_points.empty()) {
+        if(color == 0){    // 绿色
+            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 255, 0), 2);
+        }
+        else if(color == 1){   // 红色
+            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 0, 255), 2);
+        }
+        cv::putText(frame, "RC: " + std::to_string(center.x) + "," + std::to_string(center.y), 
+                   projected_points[0] + cv::Point2f(15,0), 
+                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,255,0), 1);
+    }
+}
+
+void drawArmorCenter(cv::Mat& frame, const cv::Point3f& center,      // 显示的装甲板中心点（X，Y） 没有Z轴
+                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs,int color) {
+    std::vector<cv::Point3f> points{center};
+    std::vector<cv::Point2f> projected_points; 
+    projected_points.push_back(cv::Point2f(center.x, center.y));
+
+    cv::projectPoints(points, cv::Mat::zeros(3,1,CV_32F), cv::Mat::zeros(3,1,CV_32F),  // 反投影
+                     camera_matrix, dist_coeffs, projected_points);
+    if(!projected_points.empty()){
+        if(color == 0){
+            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 255, 0), 2);
+        }
+        else if(color == 1){
+            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 0, 255), 2);
+        }
+        cv::putText(frame, "AC: " + std::to_string(center.x) + "," + std::to_string(center.y), 
+                   projected_points[0] + cv::Point2f(15,0), 
+                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,255,0), 1);
+    }
+    
+    
 }

@@ -18,5 +18,9 @@ std::vector<std::pair<cv::RotatedRect, cv::RotatedRect>> matchArmorPairs(const s
 std::vector<cv::Point2f> getArmorCorners(const std::pair<cv::RotatedRect, cv::RotatedRect> &light_pair);
 void solveArmorPose(const std::vector<cv::Point2f> &image_points, cv::Mat &rvec, cv::Mat &tvec);
 void drawDistanceInfo(cv::Mat &image, float distance_mm,const std::vector<cv::Point2f>& corners);
+void drawRotationCenter(cv::Mat& frame, const cv::Point3f& center, 
+                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs,int color);
+void drawArmorCenter(cv::Mat& frame, const cv::Point3f& center, 
+                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs,int color);
 
 #endif

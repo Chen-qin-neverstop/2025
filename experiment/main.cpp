@@ -1,5 +1,3 @@
-// 已添加kalman滤波，使用多线程和双缓冲，但是没有使用socket通信
-
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include "ImageProcess.h"
@@ -16,6 +14,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <arpa/inet.h>
+#include "Visualizer.h"
 
 using namespace std;
 using namespace cv;
@@ -26,28 +25,8 @@ ThreadSafeQueue<FrameData> frame_data_queue;  // 线程安全帧数据队列
 DoubleBuffer frame_double_buffer;             // 双缓冲用于处理结果
 atomic<bool> stop_flag(false);               // 线程停止标志
 
-double timestamp = static_cast<double>(cv::getTickCount()) / cv::getTickFrequency();
 
-void drawRotationCenter(cv::Mat& frame, const cv::Point3f& center, 
-                       const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs,int color) {
-    std::vector<cv::Point3f> points{center};
-    std::vector<cv::Point2f> projected_points;
-    
-    cv::projectPoints(points, cv::Mat::zeros(3,1,CV_32F), cv::Mat::zeros(3,1,CV_32F),
-                     camera_matrix, dist_coeffs, projected_points);
-    
-    if (!projected_points.empty()) {
-        if(color == 0){    // 绿色
-            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 255, 0), 2);
-        }
-        else if(color == 1){   // 红色
-            cv::circle(frame, projected_points[0], 10, cv::Scalar(0, 0, 255), 2);
-        }
-        cv::putText(frame, "RC: " + std::to_string(center.x) + "," + std::to_string(center.y), 
-                   projected_points[0] + cv::Point2f(15,0), 
-                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0,255,0), 1);
-    }
-}
+double timestamp = static_cast<double>(cv::getTickCount()) / cv::getTickFrequency();
 
 void processing_thread() {
     try {
@@ -86,14 +65,14 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
     // 初始化组件
     RotationCenterKalmanFilter rc_kalman; // 旋转中心专用卡尔曼滤波器
     cv::Point3f last_valid_rc; // 记录最后有效旋转中心
-    const float MAX_JUMP_DISTANCE = 0.1f; // 最大允许跳变距离(米)
+    const float MAX_JUMP_DISTANCE = 0.4f; // 最大允许跳变距离(米)
     MotionEstimator motion_estimator; // 在while循环之前声明
     RotationCenterCalculator rotation_center_calculator;
     cv::Point3f current_rotation_center;
     
 
     // 改为读取视频
-    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/11.mp4"; 
+    std::string video_path = "/home/chen/Project/Vscode/Code/AutoAIM/2025/experiment/1.mp4"; 
     VideoCapture cap(video_path);
     if (!cap.isOpened()) {
         cerr << "无法打开视频: " << video_path << endl;
@@ -106,8 +85,6 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
     // 主循环
     int frame_count = 0;
     Mat frame;
-    // 装甲板检测计数器
-    int armor_detection_count = 0;
 
     
     while (!stop_flag) {
@@ -195,7 +172,7 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
         
         //10 卡尔曼滤波更新
         try {
-            cv::Point3f filtered_rc = rc_kalman.update(rotation_center);
+            cv::Point3f filtered_rc = rc_kalman.update(rotation_center);   // 这里应该是rotation_center
             
             // 跳变检测
             if (cv::norm(filtered_rc - last_valid_rc) > MAX_JUMP_DISTANCE) {
@@ -211,18 +188,29 @@ cv::Mat dist_coeffs = (cv::Mat_<double>(1, 5) <<
                  << "  Filtered RC: " << filtered_rc << "\n"
                  << "  Velocity: " << state.linear_velocity << endl;
             
-            // 可视化
-            drawRotationCenter(frame, filtered_rc, camera_matrix, dist_coeffs,1);
+            // 可视化(用于测试/可删除)
+            drawRotationCenter(frame, filtered_rc, camera_matrix, dist_coeffs,1);  
+            RotationCenterData current_data;
+            current_data.frame = frame_count;
+            current_data.raw_center = rotation_center;
+            current_data.filtered_center = filtered_rc;
+            current_data.timestamp = timestamp;
+
+            // visualizer.addDataPoint(current_data);
+            // visualizer.showCurrentFrame(frame, current_data); 
             
         } catch (const std::exception& e) {
             cerr << "Kalman update error: " << e.what() << endl;
-            rc_kalman.init(rotation_center); // 重新初始化
-            last_valid_rc = rotation_center;
+            rc_kalman.init(rotation_center); 
+            last_valid_rc = rotation_center;  
         }
 
-       // 可视化
+       // 可视化（先别删）
         drawRotationCenter(frame, rotation_center, camera_matrix, dist_coeffs,0);
         drawDistanceInfo(frame, norm(tvec), armor_corners);
+        drawArmorCenter(frame, current_rotation_position, camera_matrix, dist_coeffs,0);
+        RotationCenterData current_data;
+
         imshow("Result", frame);
         
         //last_timestamp = timestamp;

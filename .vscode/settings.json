@@ -74,6 +74,10 @@
         "*.tcc": "cpp",
         "codecvt": "cpp",
         "future": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "*.txx": "cpp",
+        "shared_mutex": "cpp",
+        "cfenv": "cpp",
+        "queue": "cpp"
     }
 }

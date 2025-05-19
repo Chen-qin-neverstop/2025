@@ -15,6 +15,8 @@ include_directories(
     ../KalmanFilter
     ../ArmorTracker
     ../DataBuffer
+    ../Visualizer
+    ../ThreadPool
 )
 
 add_executable(experiment_demo
@@ -29,6 +31,8 @@ add_executable(experiment_demo
     ../AutoAim/src/server/KalmanFilter.cpp
     ../AutoAim/src/server/ArmorTracker.cpp
     ../AutoAim/src/server/DataBuffer.cpp
+    ../AutoAim/src/server/Visualizer.cpp
+    ../AutoAim/src/server/ThreadPool.cpp
 )
 
 target_link_libraries(experiment_demo

@@ -201,6 +201,12 @@ RotationCenterKalmanFilter::RotationCenterKalmanFilter()
     
     // 状态转移矩阵 (匀速模型)
     kf_impl_.transitionMatrix = (cv::Mat_<float>(6,6) << 
+    //    1, 0, 0, dt, 0, 0,
+    //     0, 1, 0, 0, dt, 0,
+    //     0, 0, 1, 0, 0, dt,
+    //     0, 0, 0, 1, 0, 0,
+    //     0, 0, 0, 0, 1, 0,
+    //     0, 0, 0, 0, 0, 1);
         1,0,0,1,0,0,
         0,1,0,0,1,0,
         0,0,1,0,0,1,
@@ -215,7 +221,7 @@ RotationCenterKalmanFilter::RotationCenterKalmanFilter()
         0,0,1,0,0,0);
     
     // 协方差矩阵初始化
-    cv::setIdentity(kf_impl_.processNoiseCov, cv::Scalar::all(1e-4));
+    cv::setIdentity(kf_impl_.processNoiseCov, cv::Scalar::all(1e-2));
     cv::setIdentity(kf_impl_.measurementNoiseCov, cv::Scalar::all(1e-2));
     cv::setIdentity(kf_impl_.errorCovPost, cv::Scalar::all(0.1));
 }

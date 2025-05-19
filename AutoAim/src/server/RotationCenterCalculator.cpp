@@ -42,5 +42,5 @@ cv::Point3f RotationCenterCalculator::Calculate(
                                     (angular_speed * angular_speed);
 
     // 最终旋转中心 = 装甲板位置 + 半径矢量
-    return armor_position + radius_vector;
+    return armor_position + radius_vector;    //尝试减去半径矢量
 }
